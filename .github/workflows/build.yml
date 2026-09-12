@@ -1,38 +1,50 @@
-name: Build Android APK
+# Source - https://stackoverflow.com/a/68359091
+# Posted by Big-Omelette, modified by community. See post 'Timeline' for change history
+# Retrieved 2026-09-12, License - CC BY-SA 4.0
 
+name: CI
 on:
   push:
-    branches: [ "main", "master" ] # Tự động build khi có code mới đẩy lên nhánh main/master
+    branches: [ main ]
   pull_request:
-    branches: [ "main", "master" ]
-  workflow_dispatch: # Cho phép bạn bấm nút chạy thủ công từ giao diện GitHub
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 1,15 * *'
 
 jobs:
   build:
-    name: Build APK with Buildozer
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v2
 
-      # Cache lại các thành phần nặng (SDK, NDK) để những lần build sau nhanh hơn
+      # used to cache dependencies with a timeout
+      - name: Get Date
+        id: get-date
+        run: |
+          echo "::set-output name=date::$(/bin/date -u "+%Y%m%d")"
+        shell: bash
+
       - name: Cache Buildozer global directory
-        uses: actions/cache@v3
+        uses: actions/cache@v2
         with:
           path: .buildozer_global
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }} # Replace with your path
+
+      - uses: actions/cache@v2
+        with:
+          path: .buildozer
+          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
 
       - name: Build with Buildozer
         uses: ArtemSBulgakov/buildozer-action@v1
         id: buildozer
         with:
           command: buildozer android debug
-          buildozer_version: stable
+          buildozer_version: master
 
-      # Tải file APK thu được lên GitHub Artifacts
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
         with:
-          name: android-apk
+          name: package
           path: ${{ steps.buildozer.outputs.filename }}
