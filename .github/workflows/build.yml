@@ -2,6 +2,9 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -16,57 +19,48 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Check Python
+        run: |
+          python --version
+          which python
+          python -m pip --version
+
       - name: Install system dependencies
         run: |
-          sudo apt update
-          sudo apt install -y \
-            git zip unzip \
-            openjdk-11-jdk \
-            autoconf automake libtool pkg-config \
-            zlib1g-dev libncurses5-dev \
-            libncursesw5-dev cmake libffi-dev \
-            libssl-dev gettext autopoint
+          sudo apt-get update
+          sudo apt-get install -y \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            cmake \
+            libffi-dev \
+            libssl-dev
 
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
-          pip install "buildozer==1.5.0"
-          pip install "cython<3"
+          python -m pip install "buildozer>=1.5.0"
+          python -m pip install "cython<3"
 
-      - name: Clean Buildozer cache
+      - name: Clean old Buildozer files
         run: |
-          rm -rf ~/.buildozer
           rm -rf .buildozer
-
-      - name: Force Python 3.11 for python-for-android
-        run: |
-          echo "Python:"
-          python --version
-          which python
-
-          echo "Python 3.11:"
-          /opt/hostedtoolcache/Python/3.11.16/x64/bin/python --version
-
-          echo "PATH:"
-          which python3
-          python3 --version
+          rm -rf bin
 
       - name: Build APK
-        env:
-          ACCEPT_ANDROID_SDK_LICENSE: "1"
-          PIP_DISABLE_PIP_VERSION_CHECK: "1"
         run: |
-          export PATH="/opt/hostedtoolcache/Python/3.11.16/x64/bin:$PATH"
-          export PYTHON="/opt/hostedtoolcache/Python/3.11.16/x64/bin/python"
-          export PYTHON3="/opt/hostedtoolcache/Python/3.11.16/x64/bin/python"
-
-          python --version
-          python3 --version
-
-          yes | buildozer -v android debug
+          python -m buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Python-Test-APK
+          name: android-apk
           path: bin/*.apk
