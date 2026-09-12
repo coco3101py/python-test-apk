@@ -20,34 +20,26 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y \
-            git zip unzip openjdk-17-jdk \
+            git zip unzip openjdk-11-jdk \
             autoconf automake libtool pkg-config \
             zlib1g-dev libncurses5-dev \
             libncursesw5-dev cmake libffi-dev \
-            libssl-dev
+            libssl-dev gettext autopoint
 
           python -m pip install --upgrade pip
-          pip install buildozer cython
+          pip install "buildozer==1.5.0"
+          pip install "cython<3"
 
-      - name: Prepare Android SDK licenses
+      - name: Clean Buildozer
         run: |
-          mkdir -p $HOME/.android
-          touch $HOME/.android/repositories.cfg
-
-          mkdir -p $HOME/.buildozer/android/platform
-
-          yes | sdkmanager --licenses || true
-
-      - name: Accept Android SDK licenses
-        run: |
-          mkdir -p $HOME/.android
-          yes | sdkmanager --licenses || true
+          rm -rf ~/.buildozer
+          rm -rf .buildozer
 
       - name: Build APK
         env:
           ACCEPT_ANDROID_SDK_LICENSE: "1"
         run: |
-          yes | buildozer -v android debug
+          buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
