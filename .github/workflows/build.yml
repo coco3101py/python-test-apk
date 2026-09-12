@@ -11,19 +11,22 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # ==============================
-      # CHECKOUT
-      # ==============================
+
+      # ==========================================
+      # 1. CHECKOUT SOURCE CODE
+      # ==========================================
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ==============================
-      # PYTHON 3.11
-      # ==============================
+
+      # ==========================================
+      # 2. PYTHON 3.11
+      # ==========================================
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
 
       - name: Check Python
         run: |
@@ -31,14 +34,16 @@ jobs:
           which python
           python -m pip --version
 
-      # ==============================
-      # JAVA 17
-      # ==============================
+
+      # ==========================================
+      # 3. JAVA 17
+      # ==========================================
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
+
 
       - name: Check Java
         run: |
@@ -46,9 +51,10 @@ jobs:
           javac -version
           echo "JAVA_HOME=$JAVA_HOME"
 
-      # ==============================
-      # SYSTEM DEPENDENCIES
-      # ==============================
+
+      # ==========================================
+      # 4. SYSTEM DEPENDENCIES
+      # ==========================================
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -68,15 +74,17 @@ jobs:
             libffi-dev \
             libssl-dev
 
-      # ==============================
-      # ANDROID SDK
-      # ==============================
+
+      # ==========================================
+      # 5. ANDROID SDK
+      # ==========================================
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # ==============================
-      # ANDROID SDK COMPONENTS
-      # ==============================
+
+      # ==========================================
+      # 6. ANDROID SDK COMPONENTS
+      # ==========================================
       - name: Install Android SDK components
         run: |
           sdkmanager --install \
@@ -84,23 +92,41 @@ jobs:
             "platforms;android-31" \
             "build-tools;35.0.0"
 
-      # ==============================
-      # CHECK AIDL
-      # ==============================
-      - name: Check AIDL
+
+      # ==========================================
+      # 7. ACCEPT ANDROID LICENSES
+      # ==========================================
+      - name: Accept Android licenses
+        run: |
+          yes | sdkmanager --licenses || true
+
+
+      # ==========================================
+      # 8. CHECK ANDROID SDK
+      # ==========================================
+      - name: Check Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           echo "JAVA_HOME=$JAVA_HOME"
 
-          echo "Searching AIDL..."
+          echo ""
+          echo "Installed Android platforms:"
+          sdkmanager --list_installed | grep "platforms;android" || true
 
-          find "$ANDROID_HOME" \
-            -type f \
-            -name "aidl" \
-            -print
+          echo ""
+          echo "Installed Build Tools:"
+          sdkmanager --list_installed | grep "build-tools" || true
 
-          AIDL=$(find "$ANDROID_HOME" \
+
+      # ==========================================
+      # 9. CHECK AIDL
+      # ==========================================
+      - name: Check AIDL
+        run: |
+          echo "Searching for AIDL..."
+
+          AIDL=$(find "$ANDROID_HOME/build-tools" \
             -type f \
             -name "aidl" | head -n 1)
 
@@ -109,53 +135,129 @@ jobs:
             exit 1
           fi
 
+          echo ""
           echo "AIDL found:"
           echo "$AIDL"
 
-          "$AIDL" --version
+          echo ""
+          echo "Testing AIDL..."
 
-      # ==============================
-      # INSTALL BUILDOZER
-      # ==============================
+          "$AIDL" --help >/dev/null
+
+          echo ""
+          echo "AIDL OK"
+
+
+      # ==========================================
+      # 10. INSTALL BUILDOZER
+      # ==========================================
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "buildozer>=1.5.0"
-          python -m pip install "cython<3"
 
-      # ==============================
-      # CLEAN BUILDOZER
-      # ==============================
+          python -m pip install \
+            "buildozer>=1.5.0"
+
+          python -m pip install \
+            "cython<3"
+
+
+      # ==========================================
+      # 11. CHECK BUILDOZER
+      # ==========================================
+      - name: Check Buildozer
+        run: |
+          python -m buildozer --version
+
+
+      # ==========================================
+      # 12. SHOW BUILDOZER SPEC
+      # ==========================================
+      - name: Check buildozer.spec
+        run: |
+          if [ ! -f buildozer.spec ]; then
+            echo "ERROR: buildozer.spec not found"
+            exit 1
+          fi
+
+          echo "buildozer.spec found:"
+          echo ""
+
+          sed -n '1,220p' buildozer.spec
+
+
+      # ==========================================
+      # 13. CLEAN OLD BUILD
+      # ==========================================
       - name: Clean old Buildozer files
         run: |
           rm -rf .buildozer
           rm -rf bin
 
-      # ==============================
-      # BUILD APK
-      # ==============================
+
+      # ==========================================
+      # 14. BUILD APK
+      # ==========================================
       - name: Build APK
         env:
           JAVA_HOME: ${{ env.JAVA_HOME }}
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
         run: |
+          echo "======================================"
+          echo "BUILD ENVIRONMENT"
+          echo "======================================"
+
           echo "Python:"
           python --version
 
+          echo ""
           echo "Java:"
           java -version
 
-          echo "Android:"
+          echo ""
+          echo "JAVA_HOME:"
+          echo "$JAVA_HOME"
+
+          echo ""
+          echo "ANDROID_HOME:"
           echo "$ANDROID_HOME"
+
+          echo ""
+          echo "ANDROID_SDK_ROOT:"
+          echo "$ANDROID_SDK_ROOT"
+
+          echo "======================================"
+          echo "START BUILDOZER"
+          echo "======================================"
 
           python -m buildozer android debug
 
-      # ==============================
-      # UPLOAD APK
-      # ==============================
+
+      # ==========================================
+      # 15. LIST APK
+      # ==========================================
+      - name: Find APK
+        run: |
+          echo "Searching APK..."
+
+          find bin \
+            -type f \
+            -name "*.apk" \
+            -print
+
+          if ! find bin -type f -name "*.apk" | grep -q .; then
+            echo "ERROR: APK NOT FOUND"
+            exit 1
+          fi
+
+
+      # ==========================================
+      # 16. UPLOAD APK
+      # ==========================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
           path: bin/*.apk
+          if-no-files-found: error
